@@ -41,6 +41,10 @@ default_hyperparameters = {"gamma_low":.1, "gamma_high":1.5,
                            "alpha_low":.1, "alpha_high":5.,
                            "corr_len_low":1e-3, "corr_len_high":1e1}
 
+######################################################################################################################################
+### Kernels ##########################################################################################################################
+######################################################################################################################################
+
 def white_noise(sigma, tabulation_points):
     wn_matrix = ((sigma)**2)*np.identity(len(tabulation_points))
     return wn_matrix
@@ -83,6 +87,17 @@ def rqf(gamma, alpha, corr_len, tabulation_points):
         for j, dens_prime in enumerate(logrho):
             K[i,j] = ratquad(dens, dens_prime)
     return K
+
+def gibbs(tabulation_grid, l_func):
+    logrho = np.log(tabulation_grid)
+    sqexp_gibbs = lambda x, x_prime: np.sqrt((2*l_func(x)*l_func(x_prime))/((l_func)**2 + l_func(x_prime)**2))*np.exp(-((x-x_prime)**2)/((l_func(x)**2) + l_func(x_prime)**2))
+    K = np.empty((len(tabulation_grid), len(tabulation_grid)))
+    for i, dens in enumerate(logrho):
+        for j, dens_prime in enumerate(logrho):
+            K[i.j] = sqexp_gibbs(dens, dens_prime)
+    return K
+
+#########################################################################################################################################
 
 def collect_data(eos_posterior, rho_vals_to_interp,  eos_prior_set=default_prior_set,  N=10000, weight_columns=[]):
     """
