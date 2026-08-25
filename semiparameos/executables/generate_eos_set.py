@@ -324,37 +324,30 @@ def get_full_and_restricted_mm_extensions(metamodel_number, gp, mm_eos_dir,
         write_eoss(eoss_mod, outdir=mod_outdir)
         
 ###################################################################################################
-### Phase transition synthesis ####################################################################
+### PT synthesis ##################################################################################
 
-def project_psd(M, eps=0.0):
-    M = 0.5 * (M + M.T)
-    w, V = np.linalg.eigh(M)
-    w = np.maximum(w, eps)
-    return (V * w) @ V.T
-
-def transplant_block(K, tabulation_points, src_range, dest_range, corner_floor=0.5):
-    K = K.copy()
+### Propagate Phase Transitions
+def propagate_pt(covar_mat, tabulation_points, src_range, dest_range, corner_floor = 0.5, scale = 1.0):
+    covar_mat = covar_mat.copy()
     src  = slice(np.searchsorted(tabulation_points, src_range[0]),
                  np.searchsorted(tabulation_points, src_range[1], side='right'))
     dest = slice(np.searchsorted(tabulation_points, dest_range[0]),
                  np.searchsorted(tabulation_points, dest_range[1], side='right'))
 
-    B = K[src, src][::-1, ::-1]                          # <-- reflect
-    s, n = B.shape[0], dest.stop - dest.start
-
-    K[dest, dest] = 0
+    B = scale * covar_mat[src, src][::-1, ::-1]; s, n = B.shape[0], dest.stop - dest.start
+    covar_mat[dest, dest] = 0
     for off in range(0, n, s):
         end = min(off + s, n)
-        K[dest.start+off:dest.start+end, dest.start+off:dest.start+end] = B[:end-off, :end-off]
+        covar_mat[dest.start+off:dest.start+end, dest.start+off:dest.start+end] = B[:end-off, :end-off]
 
-    mask = np.zeros(K.shape[0], bool); mask[dest] = True
+    mask = np.zeros(covar_mat.shape[0], bool); mask[dest] = True
     i, j = np.where(~mask)[0], np.where(mask)[0]
     d = np.abs(i[:, None] - j[None, :]).astype(float)
     taper = corner_floor ** (d / d.max())
-    K[np.ix_(i, j)] *= taper
-    K[np.ix_(j, i)] = K[np.ix_(i, j)].T
+    covar_mat[np.ix_(i, j)] *= taper
+    covar_mat[np.ix_(j, i)] = covar_mat[np.ix_(i, j)].T
 
-    w, V = np.linalg.eigh(0.5 * (K + K.T))
+    w, V = np.linalg.eigh(0.5 * (covar_mat + covar_mat.T))
     return (V * np.maximum(w, 1e-10)) @ V.T
 
 ##################################################################################################
